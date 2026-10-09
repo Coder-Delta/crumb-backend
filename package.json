@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "node --watch src/server.js",
     "start": "node src/server.js",
-    "seed": "node src/seed.js"
+    "seed": "node src/seed.js",
+    "check": "node --check src/server.js && node --check src/app.js && for file in src/routes/*.js src/services/*.js src/config/*.js src/middleware.js src/models.js; do node --check \"$file\" || exit 1; done"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

@@ -24,8 +24,10 @@ await mongoose.connect(process.env.MONGODB_URI||'mongodb://127.0.0.1:27017/crumb
 const restaurants=await Promise.all(restaurantData.map(data=>Restaurant.findOneAndUpdate({slug:data.slug},{$set:data},{upsert:true,new:true,setDefaultsOnInsert:true})));
 const ids=new Map(restaurants.map(r=>[r.name,r._id]));
 await Food.bulkWrite(menu.map(([name,restaurant,description,price,img,category,veg,bestseller])=>({updateOne:{filter:{restaurant:ids.get(restaurant),name},update:{$set:{name,restaurant:ids.get(restaurant),description,price,image:photo(img,700),category,veg,bestseller,available:true}},upsert:true}})));
-await Promise.all([
+const demoAccounts = await Promise.all([
  User.findOneAndUpdate({email:'hello@crumb.demo'},{$set:{name:'Alex Morgan',email:'hello@crumb.demo',password:await bcrypt.hash('crumb123',12),role:'customer',active:true}},{upsert:true,new:true,setDefaultsOnInsert:true}),
- User.findOneAndUpdate({email:'admin@crumb.demo'},{$set:{name:'Crumb Admin',email:'admin@crumb.demo',password:await bcrypt.hash('admin123',12),role:'admin',active:true}},{upsert:true,new:true,setDefaultsOnInsert:true})
+ User.findOneAndUpdate({email:'admin@crumb.demo'},{$set:{name:'Crumb Admin',email:'admin@crumb.demo',password:await bcrypt.hash('admin123',12),role:'admin',active:true}},{upsert:true,new:true,setDefaultsOnInsert:true}),
+ User.findOneAndUpdate({email:'owner@crumb.demo'},{$set:{name:'Little Sicily Owner',email:'owner@crumb.demo',password:await bcrypt.hash('owner123',12),role:'restaurant_owner',active:true}},{upsert:true,new:true,setDefaultsOnInsert:true})
 ]);
-console.log(`Seeded or refreshed ${restaurants.length} restaurants, ${menu.length} dishes, and 2 demo users. Existing non-demo data is preserved.`);await mongoose.disconnect();
+await Restaurant.updateOne({slug:'little-sicily'},{$set:{owner:demoAccounts[2]._id}});
+console.log(`Seeded or refreshed ${restaurants.length} restaurants, ${menu.length} dishes, and ${demoAccounts.length} demo users. Existing non-demo data is preserved.`);await mongoose.disconnect();
