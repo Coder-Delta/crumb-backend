@@ -2,7 +2,12 @@ import express from "express";
 import { z } from "zod";
 import { User, Restaurant, Food, Order } from "../models.js";
 import { auth, admin, asyncRoute } from "../middleware.js";
+import { notifyOrderStatusChanged } from "../services/notifications.js";
 const router = express.Router();
+const imageSchema = z.union([
+  z.string().url(),
+  z.string().regex(/^\/images\/[a-zA-Z0-9/_-]+\.(?:avif|gif|jpe?g|png|webp)$/i),
+]);
 
 router.get(
   "/admin/stats",
@@ -115,6 +120,7 @@ router.patch(
     if (!order) return res.status(404).json({ message: "Order not found." });
     order.status = status;
     await order.save();
+    await notifyOrderStatusChanged(order._id, status);
     await order.populate("user", "name email");
     await order.populate("restaurant", "name");
     res.json({ order });
@@ -179,7 +185,7 @@ const restaurantInput = z.object({
   description: z.string().max(500).optional(),
   address: z.string().max(250).optional(),
   contactPhone: z.string().max(30).optional(),
-  image: z.string().url(),
+  image: imageSchema,
   deliveryTime: z.string().max(40).optional(),
   deliveryFee: z.number().min(0).max(1000).optional(),
   priceForTwo: z.number().min(0).max(100000).optional(),
@@ -241,7 +247,7 @@ const foodInput = z.object({
   name: z.string().trim().min(2).max(120),
   description: z.string().max(500).optional(),
   category: z.string().max(50).optional(),
-  image: z.string().url(),
+  image: imageSchema,
   price: z.number().min(0).max(100000),
   veg: z.boolean().optional(),
   bestseller: z.boolean().optional(),

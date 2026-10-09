@@ -71,7 +71,7 @@ router.post(
           ...business,
           slug: `${slugBase}-${crypto.randomBytes(3).toString("hex")}`,
           image:
-            "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=1000&q=85",
+            "/images/food/photo-1517248135467-4c7edcad34c4.jpg",
           cuisine: business.cuisine,
           tags: business.cuisine,
           owner: user._id,

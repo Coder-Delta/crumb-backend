@@ -2,14 +2,19 @@ import express from "express";
 import { z } from "zod";
 import { Restaurant, Food, Order } from "../models.js";
 import { auth, restaurantOwner, asyncRoute } from "../middleware.js";
+import { notifyOrderStatusChanged } from "../services/notifications.js";
 const router = express.Router();
 const owner = restaurantOwner;
+const imageSchema = z.union([
+  z.string().url(),
+  z.string().regex(/^\/images\/[a-zA-Z0-9/_-]+\.(?:avif|gif|jpe?g|png|webp)$/i),
+]);
 const ownerFoodInput = z.object({
   restaurantId: z.string().regex(/^[0-9a-f]{24}$/i),
   name: z.string().trim().min(2).max(120),
   description: z.string().max(500).optional(),
   category: z.string().trim().min(2).max(50),
-  image: z.string().url().optional(),
+  image: imageSchema.optional(),
   price: z.number().min(1).max(100000),
   veg: z.boolean().default(false),
   bestseller: z.boolean().default(false),
@@ -69,6 +74,7 @@ router.patch(
       });
     order.status = nextStatus;
     await order.save();
+    await notifyOrderStatusChanged(order._id, nextStatus);
     res.json({ order });
   }),
 );
@@ -107,7 +113,7 @@ router.post(
       ...foodData,
       image:
         foodData.image ||
-        "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=700&q=85",
+        "/images/food/photo-1546069901-ba9599a7e63c.jpg",
       restaurant: restaurant._id,
     });
     res.status(201).json({ food: await food.populate("restaurant", "name") });

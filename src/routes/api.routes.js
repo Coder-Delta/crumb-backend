@@ -6,6 +6,7 @@ import restaurantsRouter from "./restaurants.routes.js";
 import ordersRouter from "./orders.routes.js";
 import ownerRouter from "./owner.routes.js";
 import adminRouter from "./admin.routes.js";
+import notificationsRouter from "./notifications.routes.js";
 
 const router = express.Router();
 router.use(paymentsRouter);
@@ -15,5 +16,6 @@ router.use(restaurantsRouter);
 router.use(ordersRouter);
 router.use(ownerRouter);
 router.use(adminRouter);
+router.use(notificationsRouter);
 
 export default router;

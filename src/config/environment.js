@@ -30,6 +30,12 @@ export function validateEnvironment() {
     );
   }
   if (process.env.NODE_ENV === "production") {
+    const rabbitUrl = process.env.RABBITMQ_URL || "";
+    if (!rabbitUrl.startsWith("amqps://")) {
+      throw new Error(
+        "Set RABBITMQ_URL to an amqps:// endpoint in production.",
+      );
+    }
     const origins = (process.env.CLIENT_URL || "")
       .split(",")
       .map((origin) => origin.trim())

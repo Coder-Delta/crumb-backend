@@ -7,9 +7,17 @@
     "dev": "node --watch src/server.js",
     "start": "node src/server.js",
     "seed": "node src/seed.js",
-    "check": "node --check src/server.js && node --check src/app.js && for file in src/routes/*.js src/services/*.js src/config/*.js src/middleware.js src/models.js; do node --check \"$file\" || exit 1; done"
+    "check": "node --check src/server.js && node --check src/app.js && for file in src/routes/*.js src/services/*.js src/config/*.js src/middleware.js src/models.js; do node --check \"$file\" || exit 1; done",
+    "rabbitmq:up": "docker compose -f compose.rabbitmq.yml up -d",
+    "rabbitmq:down": "docker compose -f compose.rabbitmq.yml down",
+    "rabbitmq:logs": "docker compose -f compose.rabbitmq.yml logs -f rabbitmq",
+    "docker:up": "docker compose -f ../compose.yml --env-file ../.env.docker up --build -d",
+    "docker:seed": "docker compose -f ../compose.yml --env-file ../.env.docker exec backend npm run seed",
+    "docker:down": "docker compose -f ../compose.yml --env-file ../.env.docker down",
+    "docker:logs": "docker compose -f ../compose.yml --env-file ../.env.docker logs -f"
   },
   "dependencies": {
+    "amqp-connection-manager": "^5.0.0",
     "bcryptjs": "^2.4.3",
     "compression": "^1.7.4",
     "cors": "^2.8.5",
@@ -21,6 +29,7 @@
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.9.5",
     "morgan": "^1.10.0",
+    "socket.io": "^4.8.4",
     "zod": "^3.24.1"
   }
 }

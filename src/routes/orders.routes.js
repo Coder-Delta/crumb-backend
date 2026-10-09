@@ -8,6 +8,11 @@ import {
   fetchRazorpayPayment,
   verifyCheckoutSignature,
 } from "../services/razorpay.js";
+import { applyCapturedPayment } from "../services/paymentEvents.js";
+import {
+  notifyOrderCancelledByBuyer,
+  notifyOrderPlaced,
+} from "../services/notifications.js";
 const router = express.Router();
 
 router.post(
@@ -106,6 +111,7 @@ router.post(
       razorpayOrderId: razorpayOrder?.id,
       eta: new Date(Date.now() + 35 * 60 * 1000),
     });
+    if (data.paymentMethod === "cash") await notifyOrderPlaced(order._id);
     res.status(201).json({
       order: await order.populate("restaurant", "name image"),
       payment: razorpayOrder
@@ -169,11 +175,21 @@ router.post(
           "Payment is not captured yet. Do not retry the payment; refresh in a moment or contact support.",
       });
     }
-    order.paymentStatus = "paid";
-    order.razorpayPaymentId = payment.id;
-    order.status = "placed";
-    await order.save();
-    res.json({ order: await order.populate("restaurant", "name image") });
+    await applyCapturedPayment({
+      schemaVersion: 1,
+      eventId: `checkout:${payment.id}`,
+      eventType: "payment.captured",
+      razorpayOrderId: payment.order_id,
+      razorpayPaymentId: payment.id,
+      paymentStatus: payment.status,
+      amount: payment.amount,
+      currency: payment.currency,
+    });
+    const verifiedOrder = await Order.findById(order._id).populate(
+      "restaurant",
+      "name image",
+    );
+    res.json({ order: verifiedOrder });
   }),
 );
 router.get(
@@ -251,6 +267,7 @@ router.patch(
         .json({ message: "This order can no longer be cancelled." });
     order.status = "cancelled";
     await order.save();
+    await notifyOrderCancelledByBuyer(order._id);
     res.json({ order });
   }),
 );

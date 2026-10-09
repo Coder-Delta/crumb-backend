@@ -9,6 +9,25 @@ The API is organized into application middleware (`src/app.js`), process and dat
 3. `npm install`, then `npm run seed` to add demo restaurants, dishes, and accounts. Seeding refreshes Crumb demo records and preserves unrelated database records.
 4. `npm run dev` starts the API at `http://localhost:5000`.
 
+## Run the full stack with Docker
+
+The project root has a Compose stack for the API, React/Nginx frontend, MongoDB, and RabbitMQ. Copy the root `.env.docker.example` to `.env.docker`, replace its local secrets, and from `backend/` run `npm run docker:up`. Browse at `http://localhost:8080`; the RabbitMQ management UI is at `http://localhost:15672`. Seed sample restaurants, foods, and demo accounts with `npm run docker:seed`. Stop containers with `npm run docker:down`; the named database and broker volumes are preserved. See the root README for the volume removal command.
+
+## RabbitMQ payment event handling
+
+The Razorpay webhook endpoint verifies the provider HMAC against the raw request body and publishes a small, normalized payment event to a durable RabbitMQ queue. It responds `202` only after RabbitMQ publisher confirmation. A separate worker applies `payment.captured` and `order.paid` events to MongoDB using an atomic, idempotent order update. Checkout signature verification remains synchronous so buyers receive an immediate result.
+
+The broker declares durable event, five-second retry, and dead-letter queues. The consumer uses manual acknowledgements and prefetch; transient processing or broker failures retry up to five times, then the event is retained in `crumb.payment.dead-letter` for inspection. RabbitMQ reconnects automatically. The broker is not required to serve ordinary browsing, but the payment webhook returns an error if it cannot durably enqueue an event.
+
+Local setup:
+
+1. Copy the RabbitMQ URL and local-only credentials from `.env.example` into `.env` if needed.
+2. Run `npm run rabbitmq:up` from `backend/`. The management UI is at `http://localhost:15672` with the configured local credentials.
+3. Run `npm run dev`. Queue names are declared by the API/worker on connect; no manual queue creation is needed.
+4. Inspect retries and dead-lettered messages in the management UI. `npm run rabbitmq:logs` follows broker logs; `npm run rabbitmq:down` stops the local broker while preserving its volume.
+
+For production, provide a private `amqps://` RabbitMQ endpoint and credentials through the deployment secret manager. Use a managed/high-availability broker, restrict network access, monitor queue depth and dead-letter volume, and set an operational replay procedure before launch. Do not reuse the development credentials.
+
 ## Google sign-in
 
 1. Create a **Web application** OAuth client in the Google Cloud Console, configure its consent/branding screen, and add the frontend origin to **Authorized JavaScript origins** (for local development, `http://localhost` and `http://localhost:5173`).
@@ -33,6 +52,10 @@ Checkout can request GPS permission in the browser, reverse-geocode coordinates 
 ## Restaurant owners
 
 At registration, choose **Sell food** and enter the restaurant name, cuisines, address, and business phone. Crumb creates the owner account and a restaurant profile in pending review; the restaurant stays hidden from customers until an admin approves it from **Admin → Restaurants**. Owners land on `/owner`, where they can build their menu while the review is pending and manage incoming orders after approval. Order status refreshes every 15 seconds and follows valid status transitions. Admins can also promote an existing customer account to restaurant owner and assign existing restaurants in the dashboard.
+
+## Order notifications
+
+Customers and restaurant owners receive authenticated Socket.IO notifications while signed in. Cash-on-delivery orders notify both parties immediately; online orders notify them only after Razorpay payment is verified or captured. Seller and admin order status changes notify the customer, and buyer cancellations notify the restaurant owner. Notifications are stored in MongoDB, shown in the header bell with unread counts, and remain available when a user signs back in. The Docker Nginx config proxies the Socket.IO connection as well as `/api`. These are in-app notifications; browser push while the app is closed is not configured.
 
 Razorpay funds settle to the platform merchant account by default. Automatic split settlements to restaurant bank accounts are not enabled by this integration; that requires Razorpay Route/marketplace approval and onboarding each restaurant as a linked account.
 
